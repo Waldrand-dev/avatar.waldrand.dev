@@ -1,0 +1,28 @@
+---
+/**
+ * A band of the page: the short accent rule, the heading, then whatever it
+ * holds. The rule is the threshold line at section scale, and it is the only
+ * accent in the band.
+ */
+interface Props {
+  id: string;
+  heading?: string;
+  first?: boolean;
+}
+
+const { id, heading, first = false } = Astro.props;
+---
+
+<section
+  id={id}
+  class:list={["scroll-mt-[calc(var(--spacing-masthead)+20px)]", first ? "" : "mt-14"]}
+>
+  {
+    heading !== undefined && (
+      <h2 class="relative mb-3.5 pt-[18px] font-display text-[clamp(21px,3vw,29px)] leading-[1.16] font-extrabold tracking-[-0.03em] before:absolute before:top-0 before:left-0 before:h-[3px] before:w-[46px] before:bg-accent before:content-['']">
+        <Fragment set:html={heading} />
+      </h2>
+    )
+  }
+  <slot />
+</section>

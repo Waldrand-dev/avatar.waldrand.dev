@@ -1,0 +1,202 @@
+---
+import Gallery from "./Gallery.astro";
+import Json from "./Json.astro";
+import Prose from "./Prose.astro";
+import Section from "./Section.astro";
+import Shell from "./Shell.astro";
+import Table from "./Table.astro";
+import Terminal from "./Terminal.astro";
+import { copyFor, type Lang } from "../i18n/index.ts";
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = copyFor(lang);
+
+const ORIGIN = "https://avatar.waldrand.dev";
+---
+
+<Section id="quickstart" first>
+  <p
+    class="mb-4.5 font-mono text-[11px] leading-none font-medium tracking-[0.16em] text-accent uppercase"
+  >
+    {t.hero.eyebrow}
+  </p>
+  <h1
+    class="mb-4.5 font-display text-[clamp(32px,5.4vw,52px)] leading-[1.04] font-extrabold tracking-[-0.04em]"
+  >
+    {t.hero.h1}
+  </h1>
+  <p class="m-0 max-w-[62ch] text-base text-body">{t.hero.lede}</p>
+
+  <div class="mt-7.5 grid gap-4.5 sm:grid-cols-[minmax(0,1fr)_132px]">
+    <Terminal lang={lang} command="curl" argument={`"${ORIGIN}/ada.svg?size=256&style=ridge"`} />
+    <div
+      class="grid w-[132px] place-items-center justify-self-start rounded-[10px] border border-rule bg-white p-3.5 sm:w-auto"
+    >
+      <img
+        src="/ada.svg?size=256&style=ridge"
+        width="256"
+        height="256"
+        alt={t.hero.previewAlt}
+        class="block h-auto w-full rounded-[4px]"
+      />
+    </div>
+  </div>
+</Section>
+
+<Section id="seeds" heading={t.seeds.h2}>
+  <Prose html={t.seeds.p1} />
+  <Prose html={t.seeds.p2} class="mt-4" />
+  <ul class="prose mt-4 max-w-[68ch] list-disc pl-4.5 text-[14.5px] text-body">
+    {t.seeds.bullets.map((bullet) => <li class="mt-1.5 first:mt-0" set:html={bullet} />)}
+  </ul>
+  <div class="prose mt-[22px] border-l-[2.5px] border-accent bg-paper px-4.5 py-3.5 text-[13.5px] text-body">
+    <p class="m-0" set:html={t.seeds.note} />
+  </div>
+</Section>
+
+<Section id="formats" heading={t.formats.h2}>
+  <Prose html={t.formats.p} />
+  <Table
+    head={[t.formats.thPath, t.formats.thType, t.formats.thNotes]}
+    rows={[
+      [{ html: "<code>/{seed}.svg</code>", kind: "name" }, { html: "image/svg+xml", kind: "mono" }, { html: t.formats.svg }],
+      [{ html: "<code>/{seed}.png</code>", kind: "name" }, { html: "image/png", kind: "mono" }, { html: t.formats.png }],
+      [{ html: "<code>/{seed}.webp</code>", kind: "name" }, { html: "image/webp", kind: "mono" }, { html: t.formats.webp }],
+    ]}
+  />
+</Section>
+
+<Section id="styles" heading={t.styles.h2}>
+  <Prose html={t.styles.p} />
+  <Gallery lang={lang} />
+</Section>
+
+<Section id="svg" heading="<code class='font-mono text-[0.78em] font-medium tracking-[-0.01em]'>GET /{seed}.svg</code>">
+  <Prose html={t.svg.p} />
+  <Shell
+    lines={[
+      { comment: t.svg.c1, code: `curl "${ORIGIN}/u_18f2c9.svg?radius=50"` },
+      {},
+      { comment: t.svg.c2, code: `<img src="${ORIGIN}/u_18f2c9.svg?radius=50" width="64" height="64" alt="">` },
+    ]}
+  />
+</Section>
+
+<Section id="png" heading="<code class='font-mono text-[0.78em] font-medium tracking-[-0.01em]'>GET /{seed}.png</code>">
+  <Prose html={t.png.p} />
+  <Shell
+    lines={[
+      { comment: t.png.c1, code: `curl "${ORIGIN}/ada.png?size=512&bg=none" -o ada.png` },
+      {},
+      { comment: t.png.c2, code: `curl "${ORIGIN}/ada.webp?size=512" -o ada.webp` },
+    ]}
+  />
+</Section>
+
+<Section id="parameters" heading={t.parameters.h2}>
+  <Table
+    head={[t.parameters.thName, t.parameters.thType, t.parameters.thDefault, t.parameters.thNotes]}
+    rows={[
+      [
+        { html: "seed", kind: "name" },
+        { html: "string", kind: "mono" },
+        { html: `<span class="text-accent">${t.parameters.required}</span>`, kind: "mono" },
+        { html: t.parameters.seed },
+      ],
+      [
+        { html: "size", kind: "name" },
+        { html: "16–1024", kind: "mono" },
+        { html: '<span class="text-ink">256</span>', kind: "mono" },
+        { html: t.parameters.size },
+      ],
+      [
+        { html: "style", kind: "name" },
+        { html: "enum", kind: "mono" },
+        { html: '<span class="text-ink">ridge</span>', kind: "mono" },
+        { html: t.parameters.style },
+      ],
+      [
+        { html: "radius", kind: "name" },
+        { html: "0–50", kind: "mono" },
+        { html: '<span class="text-ink">0</span>', kind: "mono" },
+        { html: t.parameters.radius },
+      ],
+      [
+        { html: "bg", kind: "name" },
+        { html: "hex", kind: "mono" },
+        { html: '<span class="text-ink">auto</span>', kind: "mono" },
+        { html: t.parameters.bg },
+      ],
+    ]}
+  />
+</Section>
+
+<Section id="rate-limits" heading={t.rate.h2}>
+  <div class="mt-6.5 grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
+    <div class="rounded-[10px] border border-rule bg-paper-warm px-5 pt-4.5 pb-5">
+      <h3
+        class="mb-3.5 font-mono text-[10.5px] leading-none font-medium tracking-[0.13em] text-muted uppercase"
+      >
+        {t.rate.label}
+      </h3>
+      <p class="mb-2.5 flex items-baseline gap-[9px]">
+        <b class="font-display text-[40px] leading-[0.9] font-extrabold tracking-[-0.03em]">60</b>
+        <span class="font-mono text-[12.5px] text-faint">{t.rate.unit}</span>
+      </p>
+      <p class="prose m-0 text-[13.5px] text-body" set:html={t.rate.p} />
+    </div>
+
+    <div class="rounded-[10px] border border-rule bg-paper-warm px-5 pt-4.5 pb-5">
+      <h3
+        class="mb-3.5 font-mono text-[10.5px] leading-none font-medium tracking-[0.13em] text-muted uppercase"
+      >
+        {t.rate.headers}
+      </h3>
+      <dl class="m-0 font-mono text-[12.5px] leading-[1.95]">
+        {
+          [
+            ["X-RateLimit-Limit:", "60"],
+            ["X-RateLimit-Remaining:", "57"],
+            ["X-RateLimit-Reset:", t.rate.epoch],
+            ["Retry-After:", t.rate.on429],
+          ].map(([term, value]) => (
+            <div class="flex flex-wrap gap-2">
+              <dt class="font-medium text-ink">{term}</dt>
+              <dd class="m-0 text-faint">{value}</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </div>
+  </div>
+  <Prose html={t.rate.p2} class="mt-6" />
+</Section>
+
+<Section id="errors" heading={t.errors.h2}>
+  <Prose html={t.errors.p} />
+  <Table
+    head={[t.errors.thStatus, t.errors.thCode, t.errors.thWhen]}
+    rows={[
+      [{ html: "400", kind: "name" }, { html: "bad_seed", kind: "mono" }, { html: t.errors.badSeed }],
+      [{ html: "400", kind: "name" }, { html: "bad_param", kind: "mono" }, { html: t.errors.badParam }],
+      [{ html: "400", kind: "name" }, { html: "unknown_format", kind: "mono" }, { html: t.errors.unknownFormat }],
+      [{ html: "405", kind: "name" }, { html: "method_not_allowed", kind: "mono" }, { html: t.errors.method }],
+      [{ html: "429", kind: "name" }, { html: "rate_limited", kind: "mono" }, { html: t.errors.rateLimited }],
+    ]}
+  />
+  <Json
+    value={{
+      error: {
+        status: 400,
+        code: "bad_param",
+        param: "size",
+        message: "size must be between 16 and 1024, got 4096.",
+      },
+      docs: `${ORIGIN}/`,
+    }}
+  />
+</Section>

@@ -1,0 +1,132 @@
+---
+import Footer from "../components/Footer.astro";
+import Masthead from "../components/Masthead.astro";
+import Rail from "../components/Rail.astro";
+import { copyFor, type Lang } from "../i18n/index.ts";
+import "../styles/global.css";
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = copyFor(lang);
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{t.meta.title}</title>
+    <meta name="description" content={t.meta.description} />
+    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
+    <link rel="alternate" hreflang="en" href={new URL("/", Astro.site)} />
+    <link rel="alternate" hreflang="de" href={new URL("/de/", Astro.site)} />
+
+    <link rel="icon" href="/assets/logo/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/assets/logo/png/favicon-32.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/assets/logo/png/apple-touch-icon.png" />
+    <meta name="theme-color" content="#12100E" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="waldrand.dev" />
+    <meta property="og:title" content={t.meta.title} />
+    <meta property="og:description" content={t.meta.ogDescription} />
+    <meta property="og:image" content={new URL("/assets/logo/png/og-image-1200x630.png", Astro.site)} />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link
+      rel="preload"
+      href="/assets/fonts/archivo-latin-800-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+  </head>
+
+  <body>
+    <a
+      href="#main"
+      class="absolute -top-full left-3 z-20 bg-ink px-4 py-2.5 font-mono text-[13px] text-paper focus:top-3"
+      >{t.meta.skip}</a
+    >
+
+    <Masthead lang={lang} />
+
+    <div
+      class="grid min-h-[calc(100vh-var(--spacing-masthead))] grid-cols-[minmax(0,1fr)] items-start lg:grid-cols-[236px_minmax(0,1fr)]"
+    >
+      <Rail lang={lang} />
+      <main id="main" class="min-w-0 max-w-[880px] px-4 py-8 pb-16 lg:px-12 lg:py-11 lg:pb-22">
+        <slot />
+      </main>
+      <Footer lang={lang} />
+    </div>
+
+    <script>
+      /* Two small jobs, both of which the page is correct without: copying the
+         quickstart command, and marking which section you are reading. */
+
+      for (const button of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
+        const source = button.parentElement?.querySelector("[data-source]");
+        if (source === null || source === undefined) continue;
+
+        button.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(source.textContent?.trim() ?? "");
+          } catch {
+            /* No clipboard permission - the text is still selectable by hand. */
+            return;
+          }
+          button.dataset.copied = "";
+          button.textContent = button.dataset.labelCopied ?? "copied";
+          setTimeout(() => {
+            delete button.dataset.copied;
+            button.textContent = button.dataset.label ?? "copy";
+          }, 1600);
+        });
+      }
+
+      const links = new Map(
+        [...document.querySelectorAll<HTMLAnchorElement>("[data-rail]")].map((a) => [
+          a.dataset.rail,
+          a,
+        ]),
+      );
+      const sections = [...document.querySelectorAll<HTMLElement>("main section[id]")].filter((s) =>
+        links.has(s.id),
+      );
+
+      if (sections.length > 0 && "IntersectionObserver" in window) {
+        const visible = new Set<string>();
+
+        const mark = () => {
+          /* Several sections can be on screen at once; the first in document
+             order is the one being read. */
+          const current = sections.find((s) => visible.has(s.id))?.id ?? sections[0]!.id;
+          for (const [id, link] of links) {
+            if (id === current) link.dataset.active = "";
+            else delete link.dataset.active;
+          }
+        };
+
+        const observer = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (entry.isIntersecting) visible.add(entry.target.id);
+              else visible.delete(entry.target.id);
+            }
+            mark();
+          },
+          /* A band just below the masthead: a heading becomes current when it
+             reaches the top of the reading area, not when it first peeks in. */
+          { rootMargin: "-57px 0px -70% 0px", threshold: 0 },
+        );
+
+        for (const section of sections) observer.observe(section);
+        mark();
+      }
+    </script>
+  </body>
+</html>

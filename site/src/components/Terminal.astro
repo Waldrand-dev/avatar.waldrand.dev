@@ -1,0 +1,31 @@
+---
+import { copyFor, type Lang } from "../i18n/index.ts";
+
+interface Props {
+  lang: Lang;
+  /** The command, already split into the parts that colour differently. */
+  command: string;
+  argument: string;
+}
+
+const { lang, command, argument } = Astro.props;
+const t = copyFor(lang);
+---
+
+<div class="relative overflow-hidden rounded-[10px] bg-ink px-[18px] pt-4 pb-[18px] text-paper">
+  <span
+    class="mb-3.5 block font-mono text-[10.5px] leading-none font-medium tracking-[0.15em] text-term-dim uppercase"
+    >{t.hero.request}</span
+  >
+  <button
+    type="button"
+    data-copy
+    data-label={t.hero.copy}
+    data-label-copied={t.hero.copied}
+    class="absolute top-3 right-3 cursor-pointer rounded-md border border-ink-rule bg-ink-raised px-2.5 py-1 font-mono text-[11.5px] leading-normal text-term-dim transition-colors hover:border-term-dim hover:text-paper data-[copied]:border-accent data-[copied]:text-accent"
+    >{t.hero.copy}</button
+  >
+  <pre
+    data-source
+    class="m-0 overflow-x-auto font-mono text-[13px] leading-[1.75] whitespace-pre"><span class="text-accent">{command}</span> <span class="text-paper">{argument}</span></pre>
+</div>

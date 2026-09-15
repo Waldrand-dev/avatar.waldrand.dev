@@ -1,0 +1,12 @@
+node_modules
+site/node_modules
+dist
+public
+site/public/assets/fonts
+site/src/styles/fonts.css
+.git
+.github
+.env
+*.log
+.DS_Store
+test

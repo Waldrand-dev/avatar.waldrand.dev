@@ -1,0 +1,27 @@
+# A single service with nothing behind it: no database, no cache, no volume.
+# `docker compose up` is the whole deployment.
+services:
+  avatar:
+    build: .
+    image: ghcr.io/waldrand-dev/avatar.waldrand.dev:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # The origin printed in the docs' examples and in error bodies.
+      PUBLIC_ORIGIN: https://avatar.waldrand.dev
+      # Behind one reverse proxy that sets X-Forwarded-For. Leave at 0 when the
+      # container is exposed directly, or the limiter can be sidestepped with a
+      # forged header.
+      TRUST_PROXY_HOPS: "1"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          # libvips is the only thing here that wants memory, and only while a
+          # PNG is being written.
+          memory: 512M

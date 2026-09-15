@@ -1,0 +1,17 @@
+---
+/**
+ * The waldrand mark — tile, ridge, threshold. Inlined rather than linked so it
+ * paints with the masthead and never flashes.
+ */
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<svg viewBox="0 0 64 64" fill="none" aria-hidden="true" class={className}>
+  <rect width="64" height="64" rx="15" fill="#12100E"></rect>
+  <path d="M9 49 L22 27 L31 38 L43 19 L55 49 Z" fill="#EFECE4"></path>
+  <rect x="9" y="25.5" width="46" height="3" fill="#E8552F"></rect>
+</svg>

@@ -1,0 +1,99 @@
+---
+import { copyFor, type Lang } from "../i18n/index.ts";
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = copyFor(lang);
+
+/**
+ * The rail is the table of contents, and the page is built in this order — so
+ * "what is below me" and "what does the rail say" cannot disagree.
+ *
+ * `code: true` marks the two entries that are request shapes rather than
+ * prose, which the reference section sets in mono.
+ */
+const groups = [
+  {
+    heading: t.nav.started,
+    items: [
+      { id: "quickstart", label: t.nav.quickstart },
+      { id: "seeds", label: t.nav.seeds },
+      { id: "formats", label: t.nav.formats },
+      { id: "styles", label: t.nav.styles },
+    ],
+  },
+  {
+    heading: t.nav.reference,
+    items: [
+      { id: "svg", label: "GET /{seed}.svg", code: true },
+      { id: "png", label: "GET /{seed}.png", code: true },
+      { id: "parameters", label: t.nav.parameters },
+      { id: "rate-limits", label: t.nav.rateLimits },
+      { id: "errors", label: t.nav.errors },
+    ],
+  },
+] as const;
+
+const elsewhere = [
+  { href: "https://image.waldrand.dev", label: "image.waldrand.dev" },
+  { href: "https://waldrand.dev", label: t.nav.allEndpoints },
+];
+
+const link =
+  "relative block rounded-[5px] py-[4.5px] pr-2.5 pl-[11px] text-[13.5px] whitespace-nowrap " +
+  "text-body no-underline transition-colors hover:bg-paper-press hover:text-ink " +
+  "data-[active]:font-medium data-[active]:text-ink data-[active]:bg-paper-press " +
+  "lg:data-[active]:bg-transparent lg:before:absolute lg:before:top-[5px] lg:before:bottom-[5px] " +
+  "lg:before:-left-1.5 lg:before:w-[2.5px] lg:before:rounded-sm lg:before:bg-accent " +
+  "lg:before:opacity-0 lg:before:content-[''] lg:data-[active]:before:opacity-100";
+---
+
+<nav
+  class="flex min-w-0 gap-7 overflow-x-auto border-b border-rule bg-paper px-4 py-4 lg:sticky lg:top-masthead lg:block lg:h-[calc(100vh-var(--spacing-masthead))] lg:overflow-x-visible lg:overflow-y-auto lg:self-start lg:border-r lg:border-b-0 lg:py-6.5 lg:pr-4 lg:pl-6"
+  aria-label={t.nav.reference}
+>
+  {
+    groups.map((group) => (
+      <div class="shrink-0 lg:not-first:mt-6.5">
+        <h2 class="mb-2.5 pl-[11px] font-mono text-[10.5px] leading-none font-medium tracking-[0.15em] text-muted uppercase">
+          {group.heading}
+        </h2>
+        <ul class="flex list-none gap-1 p-0 lg:block lg:gap-0">
+          {group.items.map((item) => (
+            <li>
+              <a href={`#${item.id}`} data-rail={item.id} class={link}>
+                {"code" in item && item.code ? (
+                  <code class="font-mono text-[12.5px]">{item.label}</code>
+                ) : (
+                  item.label
+                )}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))
+  }
+
+  <div class="shrink-0 lg:mt-6.5">
+    <h2
+      class="mb-2.5 pl-[11px] font-mono text-[10.5px] leading-none font-medium tracking-[0.15em] text-muted uppercase"
+    >
+      {t.nav.other}
+    </h2>
+    <ul class="flex list-none gap-1 p-0 lg:block lg:gap-0">
+      {
+        elsewhere.map((item) => (
+          <li>
+            <a href={item.href} class={link}>
+              {item.label} <span class="text-muted">↗</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</nav>

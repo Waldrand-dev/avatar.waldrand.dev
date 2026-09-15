@@ -1,0 +1,45 @@
+---
+import { copyFor, type Lang } from "../i18n/index.ts";
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = copyFor(lang);
+
+/**
+ * Two seeds per style, rendered by the service this page is served from — so
+ * the gallery is a live sample of the thing being documented rather than a
+ * screenshot that can go stale.
+ */
+const styles = [
+  { id: "ridge", note: t.styles.ridge, seeds: ["ada", "grace"], query: "" },
+  { id: "grid", note: t.styles.grid, seeds: ["ada", "grace"], query: "" },
+  { id: "initials", note: t.styles.initials, seeds: ["ada lovelace", "grace hopper"], query: "" },
+  { id: "rings", note: t.styles.rings, seeds: ["ada", "grace"], query: "&radius=50" },
+];
+---
+
+<div class="mt-6.5 grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-4">
+  {
+    styles.map((style) => (
+      <figure class="m-0 rounded-[10px] border border-rule bg-paper-warm p-4">
+        <div class="mb-3.5 grid grid-cols-2 gap-2">
+          {style.seeds.map((seed) => (
+            <img
+              src={`/${encodeURIComponent(seed)}.svg?style=${style.id}&size=96${style.query}`}
+              width="96"
+              height="96"
+              alt=""
+              loading="lazy"
+              class="block h-auto w-full rounded-[5px] bg-paper"
+            />
+          ))}
+        </div>
+        <figcaption class="font-mono text-[12.5px] font-medium text-ink">{style.id}</figcaption>
+        <p class="mt-[5px] mb-0 text-[13px] text-body">{style.note}</p>
+      </figure>
+    ))
+  }
+</div>

@@ -1,0 +1,95 @@
+@import "tailwindcss";
+@import "./fonts.css";
+
+/* avatar.waldrand.dev — the "Threshold" set from assets/logo/BRAND.md.
+   The masthead, the footer and every code block sit on ink; the reading
+   surface is paper. The accent opens a section and marks the current one in
+   the rail, and appears nowhere else on the page. */
+@theme {
+  --color-ink: #12100e;
+  --color-ink-raised: #1b1712;
+  --color-ink-rule: #2a251e;
+  --color-paper: #efece4;
+  --color-paper-warm: #fbfaf7;
+  --color-paper-press: #e3ded2;
+  --color-accent: #e8552f;
+  --color-muted: #a8a196;
+  --color-rule: #d6d1c7;
+  --color-rule-soft: #e6e1d7;
+  --color-body: #4e483f;
+  --color-faint: #857e72;
+  --color-term-dim: #918878;
+
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: Archivo, "Helvetica Neue", Helvetica, sans-serif;
+
+  /* The masthead height, which the rail hangs from and every anchor clears. */
+  --spacing-masthead: 57px;
+}
+
+@layer base {
+  html {
+    background: var(--color-ink);
+    scroll-behavior: smooth;
+    /* Anchored headings clear the sticky masthead instead of hiding under it. */
+    scroll-padding-top: calc(var(--spacing-masthead) + 20px);
+    -webkit-text-size-adjust: 100%;
+    color-scheme: light;
+  }
+
+  body {
+    background: var(--color-paper-warm);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--color-accent);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+}
+
+@layer components {
+  /* Inline `<code>` inside copy that arrives as a translated string, so it
+     cannot carry classes of its own. */
+  .prose code {
+    border-radius: 4px;
+    background: var(--color-paper);
+    padding: 1.5px 5px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--color-ink);
+  }
+
+  .prose a {
+    color: var(--color-ink);
+    text-decoration-line: underline;
+    text-decoration-color: var(--color-rule);
+    text-underline-offset: 3px;
+  }
+
+  .prose a:hover {
+    text-decoration-color: var(--color-accent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+}

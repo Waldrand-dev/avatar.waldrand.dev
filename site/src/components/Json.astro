@@ -1,0 +1,48 @@
+---
+/**
+ * The error body, rendered rather than pasted: keys take the accent, values
+ * paper, punctuation the dim tone.
+ */
+interface Props {
+  value: unknown;
+}
+
+const { value } = Astro.props;
+
+/** Two spaces per level, the shape `JSON.stringify(value, null, 2)` gives. */
+function lines(node: unknown, depth = 0): { pad: string; key?: string; text?: string; open?: string; close?: string }[] {
+  const pad = "  ".repeat(depth);
+  if (node !== null && typeof node === "object" && !Array.isArray(node)) {
+    const entries = Object.entries(node as Record<string, unknown>);
+    return entries.flatMap(([key, child], index) => {
+      const last = index === entries.length - 1;
+      if (child !== null && typeof child === "object") {
+        return [
+          { pad, key, open: "{" },
+          ...lines(child, depth + 1),
+          { pad, close: last ? "}" : "}," },
+        ];
+      }
+      return [{ pad, key, text: JSON.stringify(child) + (last ? "" : ",") }];
+    });
+  }
+  return [{ pad, text: JSON.stringify(node) }];
+}
+
+const rows = lines(value, 1);
+---
+
+<pre
+  class="mt-[22px] overflow-x-auto rounded-[10px] bg-ink px-[18px] py-4 font-mono text-[12.5px] leading-[1.85] text-term-dim">{"{\n"}{
+    rows.map((row) => (
+      <Fragment>
+        {row.pad}
+        {row.key !== undefined && <span class="text-accent">{`"${row.key}"`}</span>}
+        {row.key !== undefined && ": "}
+        {row.open}
+        {row.text !== undefined && <span class="text-paper">{row.text}</span>}
+        {row.close}
+        {"\n"}
+      </Fragment>
+    ))
+  }{"}"}</pre>

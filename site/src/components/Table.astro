@@ -1,0 +1,56 @@
+---
+/**
+ * The reference tables. Cells arrive as HTML because the translated notes
+ * carry `<code>`; every string in them is a literal from `src/i18n`.
+ */
+export interface Cell {
+  html: string;
+  /** `name` is the left-hand identifier, `mono` a type or a literal. */
+  kind?: "name" | "mono";
+}
+
+interface Props {
+  head: readonly string[];
+  rows: readonly (readonly Cell[])[];
+}
+
+const { head, rows } = Astro.props;
+
+const cellClass = (kind: Cell["kind"]) =>
+  kind === "name" ? "font-semibold whitespace-nowrap text-ink"
+  : kind === "mono" ? "font-mono text-[12.5px] whitespace-nowrap text-faint"
+  : "";
+---
+
+<div class="mt-[22px] overflow-x-auto">
+  <table class="w-full border-collapse text-sm">
+    <thead>
+      <tr>
+        {
+          head.map((label) => (
+            <th class="border-b border-rule pr-3.5 pb-[9px] text-left font-mono text-[10.5px] leading-none font-medium tracking-[0.12em] whitespace-nowrap text-muted uppercase last:pr-0">
+              {label}
+            </th>
+          ))
+        }
+      </tr>
+    </thead>
+    <tbody>
+      {
+        rows.map((row) => (
+          <tr>
+            {row.map((cell) => (
+              <td
+                class:list={[
+                  "prose border-b border-rule-soft py-[13px] pr-3.5 align-baseline text-body last:pr-0 group-last:border-rule",
+                  cellClass(cell.kind),
+                ]}
+                set:html={cell.html}
+              />
+            ))}
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</div>

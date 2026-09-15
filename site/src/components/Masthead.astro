@@ -1,0 +1,48 @@
+---
+import Mark from "./Mark.astro";
+import { copyFor, hrefFor, otherLang, type Lang } from "../i18n/index.ts";
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = copyFor(lang);
+const other = otherLang(lang);
+---
+
+<header
+  class="sticky top-0 z-10 flex h-masthead items-center justify-between gap-5 border-b border-ink-rule bg-ink px-4 text-paper lg:px-6"
+>
+  <a
+    href="https://waldrand.dev"
+    class="group inline-flex items-center gap-[11px] font-mono text-sm tracking-[-0.01em] whitespace-nowrap no-underline"
+  >
+    <Mark class="h-[25px] w-[25px] shrink-0 rounded-md" />
+    <span class="hidden text-term-dim transition-colors group-hover:text-paper min-[420px]:inline"
+      >waldrand.dev</span
+    >
+    <span class="hidden text-ink-rule min-[420px]:inline">/</span>
+    <span class="font-medium text-paper">avatar</span>
+  </a>
+
+  <nav class="flex items-center gap-0.5 font-mono text-[13px]" aria-label="Site">
+    <a
+      href={hrefFor(lang)}
+      aria-current="page"
+      class="rounded-md px-2.5 py-[5px] font-medium text-paper no-underline transition-colors hover:bg-ink-raised"
+      >{t.nav.docs}</a
+    >
+    <a
+      href="https://waldrand.dev/status"
+      class="rounded-md px-2.5 py-[5px] text-term-dim no-underline transition-colors hover:bg-ink-raised hover:text-paper"
+      >{t.nav.status}</a
+    >
+    <a
+      href={hrefFor(other)}
+      aria-label={t.meta.switchLabel}
+      class="rounded-md px-2.5 py-[5px] whitespace-pre text-term-dim no-underline transition-colors hover:bg-ink-raised"
+      set:html={`[<span class="${lang === "en" ? "font-medium text-paper" : ""}">en</span>/<span class="${lang === "de" ? "font-medium text-paper" : ""}">de</span>]`}
+    />
+  </nav>
+</header>

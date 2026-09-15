@@ -1,0 +1,39 @@
+---
+/**
+ * A block of shell. Comments are dimmed, the leading token of each command
+ * takes the accent and the rest is paper — the same three tones the quickstart
+ * terminal uses, so the page only ever has one idea of what a command looks
+ * like.
+ *
+ * The markup is assembled here rather than in the template because a `<pre>`
+ * keeps every newline and indent the template would put between elements.
+ */
+interface Props {
+  lines: readonly { comment?: string; code?: string }[];
+}
+
+const { lines } = Astro.props;
+
+const escape = (value: string): string =>
+  value.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c]!);
+
+const html = lines
+  .map((line) => {
+    const parts: string[] = [];
+    if (line.comment !== undefined) parts.push(escape(`# ${line.comment}`));
+    if (line.code !== undefined) {
+      const at = line.code.indexOf(" ");
+      const [head, tail] = at === -1 ? [line.code, ""] : [line.code.slice(0, at), line.code.slice(at)];
+      parts.push(
+        `<span class="text-accent">${escape(head)}</span><span class="text-paper">${escape(tail)}</span>`,
+      );
+    }
+    return parts.join("\n");
+  })
+  .join("\n");
+---
+
+<pre
+  class="mt-[22px] overflow-x-auto rounded-[10px] bg-ink px-[18px] py-4 font-mono text-[12.5px] leading-[1.85] text-term-dim"
+  set:html={html}
+/>

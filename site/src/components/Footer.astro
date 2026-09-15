@@ -1,0 +1,34 @@
+---
+import { copyFor, type Lang } from "../i18n/index.ts";
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = copyFor(lang);
+
+const REPO = "https://github.com/Waldrand-dev/avatar.waldrand.dev";
+
+const links = [
+  { href: REPO, label: t.footer.source },
+  { href: `${REPO}/issues`, label: t.footer.issues },
+  { href: "/assets/logo/BRAND.md", label: t.footer.brand },
+  { href: "/healthz", label: t.footer.health },
+];
+---
+
+<footer
+  class="col-span-full flex flex-wrap items-center justify-between gap-3.5 border-t border-ink-rule bg-ink px-4 py-[22px] font-mono text-[12.5px] text-term-dim lg:px-6"
+>
+  <span>{t.footer.built}</span>
+  <nav class="flex flex-wrap gap-4.5">
+    {
+      links.map((link) => (
+        <a href={link.href} class="no-underline transition-colors hover:text-paper">
+          {link.label}
+        </a>
+      ))
+    }
+  </nav>
+</footer>
