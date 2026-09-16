@@ -1,24 +1,30 @@
 @import "tailwindcss";
 @import "./fonts.css";
 
-/* avatar.waldrand.dev — the "Threshold" set from assets/logo/BRAND.md.
-   The masthead, the footer and every code block sit on ink; the reading
-   surface is paper. The accent opens a section and marks the current one in
-   the rail, and appears nowhere else on the page. */
+/* avatar.waldrand.dev — the "Threshold" set from assets/logo/BRAND.md, dark
+   throughout to match waldrand.dev: ink ground, paper text. The surface and
+   text tokens are the homepage's, so the two sites read as one. The accent
+   opens a section and marks the current one in the rail, and appears nowhere
+   else on the page. */
 @theme {
   --color-ink: #12100e;
   --color-ink-raised: #1b1712;
   --color-ink-rule: #2a251e;
   --color-paper: #efece4;
-  --color-paper-warm: #fbfaf7;
-  --color-paper-press: #e3ded2;
   --color-accent: #e8552f;
-  --color-muted: #a8a196;
-  --color-rule: #d6d1c7;
-  --color-rule-soft: #e6e1d7;
-  --color-body: #4e483f;
-  --color-faint: #857e72;
   --color-term-dim: #918878;
+
+  /* surfaces, derived from ink */
+  --color-surface: #12100e;
+  --color-surface-2: #17140f;
+  --color-surface-3: #1d1914;
+  --color-hairline: #2a251e;
+  --color-hairline-soft: #201c17;
+
+  /* text */
+  --color-fg: #efece4;
+  --color-fg-dim: #a8a196;
+  --color-fg-faint: #6e675d;
 
   --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -30,17 +36,17 @@
 
 @layer base {
   html {
-    background: var(--color-ink);
+    background: var(--color-surface);
     scroll-behavior: smooth;
     /* Anchored headings clear the sticky masthead instead of hiding under it. */
     scroll-padding-top: calc(var(--spacing-masthead) + 20px);
     -webkit-text-size-adjust: 100%;
-    color-scheme: light;
+    color-scheme: dark;
   }
 
   body {
-    background: var(--color-paper-warm);
-    color: var(--color-ink);
+    background: var(--color-surface);
+    color: var(--color-fg);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
@@ -63,17 +69,17 @@
      cannot carry classes of its own. */
   .prose code {
     border-radius: 4px;
-    background: var(--color-paper);
+    background: var(--color-surface-3);
     padding: 1.5px 5px;
     font-family: var(--font-mono);
     font-size: 12.5px;
-    color: var(--color-ink);
+    color: var(--color-fg);
   }
 
   .prose a {
-    color: var(--color-ink);
+    color: var(--color-fg);
     text-decoration-line: underline;
-    text-decoration-color: var(--color-rule);
+    text-decoration-color: var(--color-fg-faint);
     text-underline-offset: 3px;
   }
 

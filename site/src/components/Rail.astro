@@ -44,21 +44,21 @@ const elsewhere = [
 
 const link =
   "relative block rounded-[5px] py-[4.5px] pr-2.5 pl-[11px] text-[13.5px] whitespace-nowrap " +
-  "text-body no-underline transition-colors hover:bg-paper-press hover:text-ink " +
-  "data-[active]:font-medium data-[active]:text-ink data-[active]:bg-paper-press " +
+  "text-fg-dim no-underline transition-colors hover:bg-surface-3 hover:text-fg " +
+  "data-[active]:font-medium data-[active]:text-fg data-[active]:bg-surface-3 " +
   "lg:data-[active]:bg-transparent lg:before:absolute lg:before:top-[5px] lg:before:bottom-[5px] " +
   "lg:before:-left-1.5 lg:before:w-[2.5px] lg:before:rounded-sm lg:before:bg-accent " +
   "lg:before:opacity-0 lg:before:content-[''] lg:data-[active]:before:opacity-100";
 ---
 
 <nav
-  class="flex min-w-0 gap-7 overflow-x-auto border-b border-rule bg-paper px-4 py-4 lg:sticky lg:top-masthead lg:block lg:h-[calc(100vh-var(--spacing-masthead))] lg:overflow-x-visible lg:overflow-y-auto lg:self-start lg:border-r lg:border-b-0 lg:py-6.5 lg:pr-4 lg:pl-6"
+  class="flex min-w-0 gap-7 overflow-x-auto border-b border-hairline bg-surface px-4 py-4 lg:sticky lg:top-masthead lg:block lg:h-[calc(100vh-var(--spacing-masthead))] lg:overflow-x-visible lg:overflow-y-auto lg:self-start lg:border-r lg:border-b-0 lg:py-6.5 lg:pr-4 lg:pl-6"
   aria-label={t.nav.reference}
 >
   {
     groups.map((group) => (
       <div class="shrink-0 lg:not-first:mt-6.5">
-        <h2 class="mb-2.5 pl-[11px] font-mono text-[10.5px] leading-none font-medium tracking-[0.15em] text-muted uppercase">
+        <h2 class="mb-2.5 pl-[11px] font-mono text-[10.5px] leading-none font-medium tracking-[0.15em] text-fg-faint uppercase">
           {group.heading}
         </h2>
         <ul class="flex list-none gap-1 p-0 lg:block lg:gap-0">
@@ -80,7 +80,7 @@ const link =
 
   <div class="shrink-0 lg:mt-6.5">
     <h2
-      class="mb-2.5 pl-[11px] font-mono text-[10.5px] leading-none font-medium tracking-[0.15em] text-muted uppercase"
+      class="mb-2.5 pl-[11px] font-mono text-[10.5px] leading-none font-medium tracking-[0.15em] text-fg-faint uppercase"
     >
       {t.nav.other}
     </h2>
@@ -89,7 +89,7 @@ const link =
         elsewhere.map((item) => (
           <li>
             <a href={item.href} class={link}>
-              {item.label} <span class="text-muted">↗</span>
+              {item.label} <span class="text-fg-faint">↗</span>
             </a>
           </li>
         ))

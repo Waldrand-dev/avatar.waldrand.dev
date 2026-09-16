@@ -17,8 +17,8 @@ interface Props {
 const { head, rows } = Astro.props;
 
 const cellClass = (kind: Cell["kind"]) =>
-  kind === "name" ? "font-semibold whitespace-nowrap text-ink"
-  : kind === "mono" ? "font-mono text-[12.5px] whitespace-nowrap text-faint"
+  kind === "name" ? "font-semibold whitespace-nowrap text-fg"
+  : kind === "mono" ? "font-mono text-[12.5px] whitespace-nowrap text-fg-faint"
   : "";
 ---
 
@@ -28,7 +28,7 @@ const cellClass = (kind: Cell["kind"]) =>
       <tr>
         {
           head.map((label) => (
-            <th class="border-b border-rule pr-3.5 pb-[9px] text-left font-mono text-[10.5px] leading-none font-medium tracking-[0.12em] whitespace-nowrap text-muted uppercase last:pr-0">
+            <th class="border-b border-hairline pr-3.5 pb-[9px] text-left font-mono text-[10.5px] leading-none font-medium tracking-[0.12em] whitespace-nowrap text-fg-faint uppercase last:pr-0">
               {label}
             </th>
           ))
@@ -42,7 +42,7 @@ const cellClass = (kind: Cell["kind"]) =>
             {row.map((cell) => (
               <td
                 class:list={[
-                  "prose border-b border-rule-soft py-[13px] pr-3.5 align-baseline text-body last:pr-0 group-last:border-rule",
+                  "prose border-b border-hairline-soft py-[13px] pr-3.5 align-baseline text-fg-dim last:pr-0 group-last:border-hairline",
                   cellClass(cell.kind),
                 ]}
                 set:html={cell.html}

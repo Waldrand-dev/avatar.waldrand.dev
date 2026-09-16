@@ -24,7 +24,7 @@ const styles = [
 <div class="mt-6.5 grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-4">
   {
     styles.map((style) => (
-      <figure class="m-0 rounded-[10px] border border-rule bg-paper-warm p-4">
+      <figure class="m-0 rounded-[10px] border border-hairline bg-surface-2 p-4">
         <div class="mb-3.5 grid grid-cols-2 gap-2">
           {style.seeds.map((seed) => (
             <img
@@ -33,12 +33,12 @@ const styles = [
               height="96"
               alt=""
               loading="lazy"
-              class="block h-auto w-full rounded-[5px] bg-paper"
+              class="block h-auto w-full rounded-[5px] bg-surface-3"
             />
           ))}
         </div>
-        <figcaption class="font-mono text-[12.5px] font-medium text-ink">{style.id}</figcaption>
-        <p class="mt-[5px] mb-0 text-[13px] text-body">{style.note}</p>
+        <figcaption class="font-mono text-[12.5px] font-medium text-fg">{style.id}</figcaption>
+        <p class="mt-[5px] mb-0 text-[13px] text-fg-dim">{style.note}</p>
       </figure>
     ))
   }
