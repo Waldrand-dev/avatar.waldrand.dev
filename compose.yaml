@@ -5,8 +5,11 @@ services:
     build: .
     image: ghcr.io/waldrand-dev/avatar.waldrand.dev:latest
     restart: unless-stopped
-    ports:
-      - "8080:8080"
+    # Exposed to the Docker network only, not bound on the host: the reverse
+    # proxy (Coolify's Traefik) reaches it there, and a host binding would
+    # collide with anything else on the machine that already holds 8080.
+    expose:
+      - "8080"
     environment:
       # The origin printed in the docs' examples and in error bodies.
       PUBLIC_ORIGIN: https://avatar.waldrand.dev

@@ -132,8 +132,10 @@ filesystem — `compose.yaml` runs it `read_only` with all capabilities dropped.
 docker compose up -d --build
 ```
 
-Put a TLS terminator in front, point `avatar.waldrand.dev` at it, and set
-`TRUST_PROXY_HOPS` to match.
+The port is only exposed on the Docker network, not published on the host, so
+put a TLS terminator on that network, point `avatar.waldrand.dev` at it, and set
+`TRUST_PROXY_HOPS` to match. On Coolify that is the service's domain, given as
+`https://avatar.waldrand.dev:8080` so Traefik knows which container port to use.
 
 ## Licence
 
