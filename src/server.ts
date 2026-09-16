@@ -4,7 +4,8 @@ import { ParamError, parseRequest } from "./avatar/params.ts";
 import { rasterize } from "./avatar/raster.ts";
 import { etagFor, renderSvg } from "./avatar/render.ts";
 import { config } from "./config.ts";
-import { RateLimiter } from "./http/ratelimit.ts";
+import { RateLimiter, type Verdict } from "./http/ratelimit.ts";
+import { RenderCache } from "./http/render-cache.ts";
 import { send, sendProblem } from "./http/respond.ts";
 import type { Asset } from "./http/static.ts";
 
@@ -83,6 +84,7 @@ function serveAsset(res: ServerResponse, asset: Asset, req: IncomingMessage, hea
 export function createApp({ assets, version }: AppOptions): Server {
   const limiter = new RateLimiter(config.rateLimit.perMinute, config.rateLimit.depth);
   if (config.rateLimit.enabled) limiter.start();
+  const cache = new RenderCache(config.renderCacheBytes);
 
   const server = createServer((req, res) => {
     handle(req, res).catch((error: unknown) => {
@@ -159,15 +161,45 @@ export function createApp({ assets, version }: AppOptions): Server {
       throw error;
     }
 
+    const etag = etagFor(request);
+    const cacheControl = `public, max-age=${config.cacheSeconds}, immutable`;
+    const imageHeaders = {
+      "Content-Type": CONTENT_TYPES[request.format],
+      ETag: etag,
+      // The bytes for a given URL are fixed for as long as the style is, so
+      // this is as immutable as a content-addressed asset.
+      "Cache-Control": cacheControl,
+      "Content-Security-Policy": IMAGE_CSP,
+    };
+    const rateHeaders = (verdict: Verdict) => ({
+      "X-RateLimit-Limit": verdict.limit,
+      "X-RateLimit-Remaining": verdict.remaining,
+      "X-RateLimit-Reset": verdict.reset,
+    });
+    const client = clientAddress(req, config.trustProxyHops);
+
+    // Answers that never reach the renderer are not charged: a revalidation
+    // the caller already holds the bytes for, and a render already in cache.
+    // The limit protects the renderer, and a page that shows the same avatars
+    // on every view should not run into it. They still report the bucket.
+    if (req.headers["if-none-match"] === etag) {
+      const limit = config.rateLimit.enabled ? rateHeaders(limiter.peek(client)) : {};
+      send(res, 304, { ETag: etag, "Cache-Control": cacheControl, ...limit }, null, true);
+      return;
+    }
+
+    const cached = cache.get(etag);
+    if (cached !== undefined) {
+      const limit = config.rateLimit.enabled ? rateHeaders(limiter.peek(client)) : {};
+      send(res, 200, { ...imageHeaders, ...limit }, cached, headOnly);
+      return;
+    }
+
     // Counted after parsing, so a caller burning through malformed URLs is
     // still limited, but a 400 they can fix does not cost them the answer.
     if (config.rateLimit.enabled) {
-      const verdict = limiter.take(clientAddress(req, config.trustProxyHops));
-      const headers = {
-        "X-RateLimit-Limit": verdict.limit,
-        "X-RateLimit-Remaining": verdict.remaining,
-        "X-RateLimit-Reset": verdict.reset,
-      };
+      const verdict = limiter.take(client);
+      const headers = rateHeaders(verdict);
 
       if (!verdict.allowed) {
         sendProblem(
@@ -185,30 +217,17 @@ export function createApp({ assets, version }: AppOptions): Server {
       res.setHeader("X-RateLimit-Reset", headers["X-RateLimit-Reset"]);
     }
 
-    const etag = etagFor(request);
-    if (req.headers["if-none-match"] === etag) {
-      send(res, 304, { ETag: etag, "Cache-Control": `public, max-age=${config.cacheSeconds}, immutable` }, null, true);
-      return;
-    }
-
     const started = process.hrtime.bigint();
     const svg = renderSvg(request);
     const body =
       request.format === "svg" ? Buffer.from(svg, "utf8") : await rasterize(svg, request.format, request.size);
     const micros = Number(process.hrtime.bigint() - started) / 1000;
+    cache.set(etag, body);
 
     send(
       res,
       200,
-      {
-        "Content-Type": CONTENT_TYPES[request.format],
-        ETag: etag,
-        // The bytes for a given URL are fixed for as long as the style is, so
-        // this is as immutable as a content-addressed asset.
-        "Cache-Control": `public, max-age=${config.cacheSeconds}, immutable`,
-        "Content-Security-Policy": IMAGE_CSP,
-        "Server-Timing": `render;dur=${(micros / 1000).toFixed(1)}`,
-      },
+      { ...imageHeaders, "Server-Timing": `render;dur=${(micros / 1000).toFixed(1)}` },
       body,
       headOnly,
     );

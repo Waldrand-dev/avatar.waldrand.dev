@@ -66,6 +66,16 @@ describe("RateLimiter", () => {
     assert.equal(Number.isInteger(verdict.reset), true);
   });
 
+  it("peeks without spending", () => {
+    const limiter = new RateLimiter(60, 60);
+    const now = 1_000_000;
+    assert.equal(limiter.peek("a", now).remaining, 60, "an unseen client has a full bucket");
+
+    limiter.take("a", now);
+    for (let i = 0; i < 10; i += 1) assert.equal(limiter.peek("a", now).remaining, 59);
+    assert.equal(limiter.take("a", now).remaining, 58);
+  });
+
   it("forgets a client once its bucket has refilled", () => {
     const limiter = new RateLimiter(60, 60);
     limiter.take("a", 1_000_000);

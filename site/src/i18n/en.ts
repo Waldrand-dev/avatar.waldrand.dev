@@ -126,8 +126,9 @@ export const en = {
     label: "Rate limit — per IP",
     unit: "req / min",
     p:
-      "Spend all sixty at once if you like; the bucket refills at one a second. Cached responses " +
-      "don’t count against you — set a long <code>max-age</code> and you’ll rarely see the ceiling.",
+      "The bucket holds four minutes’ worth, so a page of 200 avatars loads in one go; it refills at " +
+      "one a second. Only fresh renders count: a <code>304</code> or an avatar already in the server’s " +
+      "cache is free, and browser-cached images never reach us at all.",
     headers: "Response headers",
     epoch: "1738 (epoch s)",
     on429: "on 429 only",

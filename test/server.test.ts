@@ -104,6 +104,33 @@ describe("headers", () => {
     assert.equal(await second.text(), "");
   });
 
+  it("does not charge a cache hit or a 304 against the rate limit", async () => {
+    const fresh = await get("/free-when-cached.svg");
+    assert.ok(fresh.headers.has("server-timing"), "the first request renders");
+    const spent = Number(fresh.headers.get("x-ratelimit-remaining"));
+    const etag = fresh.headers.get("etag")!;
+
+    for (let i = 0; i < 5; i += 1) {
+      const hit = await get("/free-when-cached.svg");
+      assert.equal(hit.status, 200);
+      assert.equal(hit.headers.has("server-timing"), false, "a hit skips the renderer");
+      assert.match(await hit.text(), /^<svg /);
+      assert.ok(Number(hit.headers.get("x-ratelimit-remaining")) >= spent, "a hit spent a token");
+
+      const revalidated = await get("/free-when-cached.svg", { headers: { "If-None-Match": etag } });
+      assert.equal(revalidated.status, 304);
+      assert.ok(Number(revalidated.headers.get("x-ratelimit-remaining")) >= spent, "a 304 spent a token");
+    }
+  });
+
+  it("lets a page of 100 distinct avatars load in one go", async () => {
+    const results = await Promise.all(
+      Array.from({ length: 100 }, (_, i) => get(`/page-${i}.svg`, { headers: { "X-Forwarded-For": "ignored" } })),
+    );
+    assert.deepEqual(new Set(results.map((res) => res.status)), new Set([200]));
+    await Promise.all(results.map((res) => res.arrayBuffer()));
+  });
+
   it("reports the rate limit on every rendered avatar", async () => {
     const res = await get("/ada.svg");
     assert.equal(res.headers.get("x-ratelimit-limit"), "60");

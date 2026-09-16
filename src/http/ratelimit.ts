@@ -1,10 +1,10 @@
 /**
  * A token bucket per client, held in this process's memory.
  *
- * `perMinute` is the allowance and `burst` is how deep the bucket goes. With
- * the two equal - the default - a caller may spend the whole minute at once and
- * then refill steadily, which is the shape a page of avatars actually wants:
- * forty in one go, then one a second.
+ * `perMinute` is the sustained allowance and `burst` is how deep the bucket
+ * goes. The default bucket holds four minutes' worth, so a page with a couple
+ * of hundred distinct avatars loads in one go and the caller then refills at
+ * one a second - the shape a page of avatars actually wants.
  *
  * In-process means one container's view only. Behind more than one replica
  * each gets its own bucket, so either put the limiter in front of them or
@@ -42,6 +42,27 @@ export class RateLimiter {
     this.#limit = perMinute;
     this.#capacity = Math.max(1, burst);
     this.#perSecond = perMinute / 60;
+  }
+
+  /**
+   * Reads a client's bucket without spending from it - for answers that cost
+   * nothing to give, like a 304 or a render already in cache, which should
+   * still report where the caller stands.
+   */
+  peek(key: string, now: number = Date.now()): Verdict {
+    const bucket = this.#buckets.get(key);
+    const tokens =
+      bucket === undefined ?
+        this.#capacity
+      : Math.min(this.#capacity, bucket.tokens + ((now - bucket.updated) / 1000) * this.#perSecond);
+
+    return {
+      allowed: true,
+      limit: this.#limit,
+      remaining: Math.floor(tokens),
+      reset: Math.ceil(now / 1000 + (this.#capacity - tokens) / this.#perSecond),
+      retryAfter: 0,
+    };
   }
 
   /** Spends one token if there is one. Call once per limited request. */

@@ -87,7 +87,8 @@ src/avatar/palette.ts the byte stream to colour
 src/avatar/styles/    one file per style
 src/avatar/render.ts  the SVG, and the ETag over its inputs
 src/avatar/raster.ts  SVG to PNG or WebP, through libvips
-src/http/ratelimit.ts a token bucket per IP
+src/http/ratelimit.ts a token bucket per IP, charged for renders only
+src/http/render-cache.ts rendered avatars by ETag, bounded by bytes
 src/http/static.ts    the docs, read into memory at boot
 site/                 the docs page: Astro, Tailwind, two prerendered languages
 ```
@@ -112,7 +113,7 @@ see the page as it is served.
 
 ## Configuration
 
-Every variable and its default is in [.env.example](.env.example). Two are
+Every variable and its default is in [.env.example](.env.example). These are
 worth knowing about:
 
 - **`TRUST_PROXY_HOPS`** — 0 by default, which uses the socket address and
@@ -122,6 +123,12 @@ worth knowing about:
 - **`RATE_LIMIT_PER_MINUTE`** — 60. The bucket is held in this process's memory,
   so two replicas mean two buckets. Behind more than one, either limit at the
   gateway or accept that the real ceiling is 60 × replicas.
+- **`RATE_LIMIT_BURST`** — 0, meaning four minutes' worth (240). A page showing
+  80+ distinct avatars is one burst on first load; a bucket only a minute deep
+  would 429 its tail.
+- **`RENDER_CACHE_MB`** — 32. Rendered avatars kept in memory by ETag. Only
+  renders spend a token: a cache hit or a 304 reports the bucket but does not
+  draw from it, so repeat views of the same page never approach the limit.
 
 ## Deploy
 

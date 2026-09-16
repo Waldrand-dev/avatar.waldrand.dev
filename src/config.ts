@@ -25,10 +25,14 @@ export const config = {
   origin: str("PUBLIC_ORIGIN", "https://avatar.waldrand.dev"),
 
   /**
-   * The per-IP allowance. `burst` is the bucket depth - how much of the minute
-   * may be spent at once - and defaults to the whole of it, so
-   * `X-RateLimit-Limit` and `X-RateLimit-Remaining` are two readings of one
-   * number rather than two different ceilings.
+   * The per-IP allowance. `perMinute` is the sustained rate and what
+   * `X-RateLimit-Limit` reports; `burst` is the bucket depth - how much may be
+   * spent at once - and defaults to four minutes' worth. A page showing 80+
+   * distinct avatars is one burst of requests, and a bucket only a minute deep
+   * would 429 the tail of it on first load.
+   *
+   * Only renders are charged. A 304 or an answer from the render cache costs
+   * nothing - see `src/server.ts`.
    */
   rateLimit: {
     perMinute: int("RATE_LIMIT_PER_MINUTE", 60),
@@ -37,11 +41,14 @@ export const config = {
     get enabled() {
       return this.perMinute > 0;
     },
-    /** The bucket depth actually used: `burst` when set, the full minute otherwise. */
+    /** The bucket depth actually used: `burst` when set, four minutes' worth otherwise. */
     get depth() {
-      return this.burst > 0 ? this.burst : this.perMinute;
+      return this.burst > 0 ? this.burst : this.perMinute * 4;
     },
   },
+
+  /** Memory for rendered avatars, in MiB. Hits skip the renderer and the rate limit. 0 disables it. */
+  renderCacheBytes: int("RENDER_CACHE_MB", 32) * 1024 * 1024,
 
   /** `max-age` on a rendered avatar. They never change, so this is measured in days. */
   cacheSeconds: int("CACHE_SECONDS", 60 * 60 * 24 * 30),

@@ -128,9 +128,9 @@ export const de: Copy = {
     label: "Limit — pro IP",
     unit: "Anfr. / Min.",
     p:
-      "Gib alle sechzig auf einmal aus, wenn du magst; der Eimer füllt sich mit einer pro Sekunde " +
-      "nach. Gecachte Antworten zählen nicht mit — setz ein langes <code>max-age</code>, dann " +
-      "siehst du die Decke selten.",
+      "Der Eimer fasst vier Minuten, eine Seite mit 200 Avataren lädt also in einem Rutsch; er füllt " +
+      "sich mit einer pro Sekunde nach. Es zählen nur frische Renderings: ein <code>304</code> oder ein " +
+      "Avatar aus dem Server-Cache ist frei, und vom Browser gecachte Bilder erreichen uns gar nicht.",
     headers: "Antwort-Header",
     epoch: "1738 (Epoch s)",
     on429: "nur bei 429",
