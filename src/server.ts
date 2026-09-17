@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
 import { ParamError, parseRequest } from "./avatar/params.ts";
@@ -7,6 +8,8 @@ import { config } from "./config.ts";
 import { RateLimiter, type Verdict } from "./http/ratelimit.ts";
 import { RenderCache } from "./http/render-cache.ts";
 import { send, sendProblem } from "./http/respond.ts";
+import { renderStatsPage } from "./http/stats-page.ts";
+import { RequestStats } from "./http/stats.ts";
 import type { Asset } from "./http/static.ts";
 
 const DOCS_URL = `${config.origin}/`;
@@ -51,6 +54,26 @@ export function clientAddress(req: IncomingMessage, hops: number): string {
   return chain[Math.max(0, chain.length - hops)] ?? socketAddress;
 }
 
+/**
+ * Whether the caller holds the stats token.
+ *
+ * Compared as digests of a fixed length so the comparison cannot be timed,
+ * and so a wrong token of the wrong length fails the same way as one of the
+ * right length. Read from `Authorization` first; the query parameter is there
+ * because a chart is something you open in a browser, where a header is not
+ * something you can add.
+ */
+export function holdsToken(req: IncomingMessage, params: URLSearchParams, expected: string): boolean {
+  if (expected === "") return false;
+
+  const header = String(req.headers.authorization ?? "");
+  const bearer = header.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : "";
+  const supplied = bearer !== "" ? bearer : (params.get("token") ?? "");
+
+  const digest = (value: string) => createHash("sha256").update(value, "utf8").digest();
+  return timingSafeEqual(digest(supplied), digest(expected));
+}
+
 function serveAsset(res: ServerResponse, asset: Asset, req: IncomingMessage, headOnly: boolean): void {
   const acceptsGzip = /\bgzip\b/.test(String(req.headers["accept-encoding"] ?? ""));
   const useGzip = asset.gzip !== null && acceptsGzip;
@@ -85,6 +108,7 @@ export function createApp({ assets, version }: AppOptions): Server {
   const limiter = new RateLimiter(config.rateLimit.perMinute, config.rateLimit.depth);
   if (config.rateLimit.enabled) limiter.start();
   const cache = new RenderCache(config.renderCacheBytes);
+  const stats = new RequestStats(config.stats.timezone);
 
   const server = createServer((req, res) => {
     handle(req, res).catch((error: unknown) => {
@@ -103,10 +127,12 @@ export function createApp({ assets, version }: AppOptions): Server {
     const method = req.method ?? "GET";
 
     if (method === "OPTIONS") {
+      stats.record("page");
       send(res, 204, { "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS", "Access-Control-Max-Age": "86400" }, null);
       return;
     }
     if (method !== "GET" && method !== "HEAD") {
+      stats.record("rejected");
       sendProblem(res, 405, { code: "method_not_allowed", message: `${method} is not supported. Use GET.` }, DOCS_URL, { Allow: "GET, HEAD, OPTIONS" });
       return;
     }
@@ -115,7 +141,45 @@ export function createApp({ assets, version }: AppOptions): Server {
     const url = new URL(req.url ?? "/", "http://localhost");
     const pathname = url.pathname;
 
+    // Before the asset table and the seed namespace, and only a route at all
+    // when a token is configured. Reading the counters is not a request worth
+    // counting, so nothing here records.
+    if (config.stats.enabled && (pathname === "/stats" || pathname === "/stats.json")) {
+      if (!holdsToken(req, url.searchParams, config.stats.token)) {
+        // The same answer an unknown path gets: whoever is guessing learns
+        // nothing about whether this one exists.
+        sendProblem(res, 404, { code: "not_found", message: "No such path." }, DOCS_URL, {}, headOnly);
+        return;
+      }
+
+      const snapshot = stats.snapshot();
+      const headers = { "Cache-Control": "no-store, private" };
+
+      if (pathname === "/stats.json") {
+        send(
+          res,
+          200,
+          { "Content-Type": "application/json; charset=utf-8", ...headers },
+          JSON.stringify(snapshot, null, 2) + "\n",
+          headOnly,
+          { shared: false },
+        );
+        return;
+      }
+
+      send(
+        res,
+        200,
+        { "Content-Type": "text/html; charset=utf-8", ...headers },
+        renderStatsPage(snapshot, config.origin),
+        headOnly,
+        { shared: false },
+      );
+      return;
+    }
+
     if (pathname === "/healthz") {
+      stats.record("page");
       send(
         res,
         200,
@@ -131,11 +195,13 @@ export function createApp({ assets, version }: AppOptions): Server {
     // with an extension, which is the documented shape anyway.
     const asset = assets.get(pathname);
     if (asset !== undefined) {
+      stats.record("page");
       serveAsset(res, asset, req, headOnly);
       return;
     }
 
     if (pathname === "/") {
+      stats.record("page");
       sendProblem(res, 404, { code: "not_found", message: "The docs page is missing from this build." }, DOCS_URL, {}, headOnly);
       return;
     }
@@ -155,6 +221,7 @@ export function createApp({ assets, version }: AppOptions): Server {
       request = parseRequest(pathname, params);
     } catch (error) {
       if (error instanceof ParamError) {
+        stats.record("rejected");
         sendProblem(res, 400, { code: error.code, param: error.param, message: error.message }, DOCS_URL, {}, headOnly);
         return;
       }
@@ -183,6 +250,7 @@ export function createApp({ assets, version }: AppOptions): Server {
     // The limit protects the renderer, and a page that shows the same avatars
     // on every view should not run into it. They still report the bucket.
     if (req.headers["if-none-match"] === etag) {
+      stats.record("revalidated");
       const limit = config.rateLimit.enabled ? rateHeaders(limiter.peek(client)) : {};
       send(res, 304, { ETag: etag, "Cache-Control": cacheControl, ...limit }, null, true);
       return;
@@ -190,6 +258,7 @@ export function createApp({ assets, version }: AppOptions): Server {
 
     const cached = cache.get(etag);
     if (cached !== undefined) {
+      stats.record("cached");
       const limit = config.rateLimit.enabled ? rateHeaders(limiter.peek(client)) : {};
       send(res, 200, { ...imageHeaders, ...limit }, cached, headOnly);
       return;
@@ -202,6 +271,7 @@ export function createApp({ assets, version }: AppOptions): Server {
       const headers = rateHeaders(verdict);
 
       if (!verdict.allowed) {
+        stats.record("limited");
         sendProblem(
           res,
           429,
@@ -217,6 +287,7 @@ export function createApp({ assets, version }: AppOptions): Server {
       res.setHeader("X-RateLimit-Reset", headers["X-RateLimit-Reset"]);
     }
 
+    stats.record("rendered");
     const started = process.hrtime.bigint();
     const svg = renderSvg(request);
     const body =

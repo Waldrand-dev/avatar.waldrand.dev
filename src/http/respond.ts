@@ -14,17 +14,36 @@ const BASE: Headers = {
   "Cross-Origin-Resource-Policy": "cross-origin",
 };
 
+/** The same guard without the grant: nothing about this is for other origins. */
+const PRIVATE: Headers = {
+  "X-Content-Type-Options": "nosniff",
+  "Cross-Origin-Resource-Policy": "same-origin",
+  "Referrer-Policy": "no-referrer",
+  "X-Robots-Tag": "noindex, nofollow",
+};
+
+export interface SendOptions {
+  /**
+   * False for a response only its addressee may read. Everything an avatar
+   * request touches is public and says so; the operator's own pages are not,
+   * and a blanket `Access-Control-Allow-Origin: *` would hand them to any
+   * page that could get the reader to load one.
+   */
+  readonly shared?: boolean;
+}
+
 export function send(
   res: ServerResponse,
   status: number,
   headers: Headers,
   body: Buffer | string | null,
   headOnly = false,
+  { shared = true }: SendOptions = {},
 ): void {
   const payload = body === null ? null : Buffer.isBuffer(body) ? body : Buffer.from(body, "utf8");
 
   res.writeHead(status, {
-    ...BASE,
+    ...(shared ? BASE : PRIVATE),
     ...headers,
     ...(payload === null ? {} : { "Content-Length": payload.byteLength }),
   });

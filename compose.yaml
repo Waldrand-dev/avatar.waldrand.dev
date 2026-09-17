@@ -17,6 +17,11 @@ services:
       # container is exposed directly, or the limiter can be sidestepped with a
       # forged header.
       TRUST_PROXY_HOPS: "1"
+      # Opens /stats, the operator's own request chart. Set it in the
+      # deployment's secrets - never here - and generate it with
+      # `openssl rand -hex 32`. Unset, the route does not exist.
+      STATS_TOKEN: ${STATS_TOKEN:-}
+      STATS_TIMEZONE: ${STATS_TIMEZONE:-Europe/Berlin}
     read_only: true
     cap_drop:
       - ALL

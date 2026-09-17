@@ -17,6 +17,32 @@ const int = (name: string, fallback: number): number => {
 
 const str = (name: string, fallback: string): string => process.env[name] || fallback;
 
+/** Short enough to guess is not a secret, so a weak one fails the boot. */
+const MIN_TOKEN_LENGTH = 24;
+
+/**
+ * Reads a secret. Never echoes the value - a boot log is the last place a
+ * token should end up - so the error talks about its length instead.
+ */
+const secret = (name: string): string => {
+  const raw = process.env[name] ?? "";
+  if (raw === "") return "";
+  if (raw.length < MIN_TOKEN_LENGTH) {
+    throw new Error(`${name} must be at least ${MIN_TOKEN_LENGTH} characters; got ${raw.length}`);
+  }
+  return raw;
+};
+
+const zone = (name: string, fallback: string): string => {
+  const value = str(name, fallback);
+  try {
+    new Intl.DateTimeFormat("en-CA", { timeZone: value });
+  } catch {
+    throw new Error(`${name} must be an IANA time zone such as "Europe/Berlin", got ${JSON.stringify(value)}`);
+  }
+  return value;
+};
+
 export const config = {
   host: str("HOST", "0.0.0.0"),
   port: int("PORT", 8080),
@@ -59,6 +85,25 @@ export const config = {
    * the right answer unless something in front of you rewrites it.
    */
   trustProxyHops: int("TRUST_PROXY_HOPS", 0),
+
+  /**
+   * The private request counters at `/stats`.
+   *
+   * `STATS_TOKEN` is the whole of the access control: unset, the route does
+   * not exist and `/stats` is just another seed. Set, it must be presented as
+   * `Authorization: Bearer <token>` or `?token=<token>`, and anything else
+   * gets the same 404 an unknown path gets.
+   *
+   * `timezone` decides what "today" means on the page. UTC unless told
+   * otherwise, so an unconfigured container draws an unambiguous day.
+   */
+  stats: {
+    token: secret("STATS_TOKEN"),
+    timezone: zone("STATS_TIMEZONE", "UTC"),
+    get enabled() {
+      return this.token !== "";
+    },
+  },
 
   /** Hard ceiling on a seed, before decoding. Keeps a URL from becoming a payload. */
   maxSeedLength: 256,

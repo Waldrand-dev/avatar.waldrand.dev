@@ -89,6 +89,8 @@ src/avatar/render.ts  the SVG, and the ETag over its inputs
 src/avatar/raster.ts  SVG to PNG or WebP, through libvips
 src/http/ratelimit.ts a token bucket per IP, charged for renders only
 src/http/render-cache.ts rendered avatars by ETag, bounded by bytes
+src/http/stats.ts     hourly request counters, no addresses, no seeds
+src/http/stats-page.ts the private /stats page and its inline-SVG charts
 src/http/static.ts    the docs, read into memory at boot
 site/                 the docs page: Astro, Tailwind, two prerendered languages
 ```
@@ -129,6 +131,37 @@ worth knowing about:
 - **`RENDER_CACHE_MB`** — 32. Rendered avatars kept in memory by ETag. Only
   renders spend a token: a cache hit or a 304 reports the bucket but does not
   draw from it, so repeat views of the same page never approach the limit.
+- **`STATS_TOKEN`** — unset, and while it is unset `/stats` is not a route at
+  all. See below.
+
+## How many requests were there?
+
+`/stats` is a chart of today by the hour, the last 30 days by the day, and the
+outcome each request had — rendered, served from the render cache, revalidated
+with a 304, rate limited, rejected, or the docs. It is for the operator, so it
+only exists once there is a token to hold:
+
+```sh
+STATS_TOKEN=$(openssl rand -hex 32)   # 24 characters minimum, or boot fails
+```
+
+```sh
+open "https://avatar.waldrand.dev/stats?token=$STATS_TOKEN"
+curl -H "Authorization: Bearer $STATS_TOKEN" https://avatar.waldrand.dev/stats.json
+```
+
+The token may travel as `Authorization: Bearer` or as `?token=` — a browser can
+only do the second. Anything without it gets the same 404 an unknown path gets,
+and with `STATS_TOKEN` unset `/stats` is simply the avatar for the seed
+`stats`. The page is `no-store`, `noindex`, and carries no
+`Access-Control-Allow-Origin`, so no other origin can read it.
+
+What it counts is six numbers an hour and nothing else — no addresses, no
+seeds, no paths, no user agents. The counters live in the container's memory
+like the rate limiter and the render cache do, which has two consequences worth
+knowing: a restart or redeploy starts the day at zero, and a second replica
+counts only its own share. `STATS_TIMEZONE` decides what "today" means; it is
+UTC until set.
 
 ## Deploy
 
