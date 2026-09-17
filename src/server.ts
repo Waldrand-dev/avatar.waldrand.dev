@@ -8,6 +8,7 @@ import { config } from "./config.ts";
 import { RateLimiter, type Verdict } from "./http/ratelimit.ts";
 import { RenderCache } from "./http/render-cache.ts";
 import { send, sendProblem } from "./http/respond.ts";
+import { RecentRenders } from "./http/recent.ts";
 import { renderStatsPage } from "./http/stats-page.ts";
 import { RequestStats } from "./http/stats.ts";
 import type { Asset } from "./http/static.ts";
@@ -109,6 +110,7 @@ export function createApp({ assets, version }: AppOptions): Server {
   if (config.rateLimit.enabled) limiter.start();
   const cache = new RenderCache(config.renderCacheBytes);
   const stats = new RequestStats(config.stats.timezone);
+  const recent = new RecentRenders(config.stats.recentMs, config.stats.recentMax);
 
   const server = createServer((req, res) => {
     handle(req, res).catch((error: unknown) => {
@@ -153,6 +155,7 @@ export function createApp({ assets, version }: AppOptions): Server {
       }
 
       const snapshot = stats.snapshot();
+      const seen = recent.list();
       const headers = { "Cache-Control": "no-store, private" };
 
       if (pathname === "/stats.json") {
@@ -160,7 +163,7 @@ export function createApp({ assets, version }: AppOptions): Server {
           res,
           200,
           { "Content-Type": "application/json; charset=utf-8", ...headers },
-          JSON.stringify(snapshot, null, 2) + "\n",
+          JSON.stringify({ ...snapshot, recent: seen, recentWindowMinutes: config.stats.recentMinutes }, null, 2) + "\n",
           headOnly,
           { shared: false },
         );
@@ -171,7 +174,7 @@ export function createApp({ assets, version }: AppOptions): Server {
         res,
         200,
         { "Content-Type": "text/html; charset=utf-8", ...headers },
-        renderStatsPage(snapshot, config.origin),
+        renderStatsPage({ snapshot, recent: seen, recentWindowMs: recent.windowMs, origin: config.origin }),
         headOnly,
         { shared: false },
       );
@@ -259,6 +262,7 @@ export function createApp({ assets, version }: AppOptions): Server {
     const cached = cache.get(etag);
     if (cached !== undefined) {
       stats.record("cached");
+      recent.record(request, etag, false);
       const limit = config.rateLimit.enabled ? rateHeaders(limiter.peek(client)) : {};
       send(res, 200, { ...imageHeaders, ...limit }, cached, headOnly);
       return;
@@ -288,6 +292,7 @@ export function createApp({ assets, version }: AppOptions): Server {
     }
 
     stats.record("rendered");
+    recent.record(request, etag, true);
     const started = process.hrtime.bigint();
     const svg = renderSvg(request);
     const body =

@@ -3,7 +3,20 @@ import type { IncomingMessage } from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, describe, it } from "node:test";
 
+import type { AvatarRequest } from "../src/avatar/params.ts";
+import { RecentRenders, type RecentEntry } from "../src/http/recent.ts";
 import { RequestStats, recentDates, sum } from "../src/http/stats.ts";
+
+/** An avatar request, as `parseRequest` would have produced it. */
+const request = (seed: string, style = "ridge"): AvatarRequest => ({
+  seed,
+  format: "svg",
+  size: 256,
+  style,
+  radius: 0,
+  background: null,
+  backgroundAuto: true,
+});
 
 /**
  * The counters are read through a zone, so every assertion here pins one:
@@ -88,6 +101,69 @@ describe("request stats", () => {
     const snapshot = stats.snapshot(now);
     assert.equal(sum(snapshot.today.counts), 6);
     assert.equal(snapshot.today.total, 6);
+  });
+});
+
+describe("recent renders", () => {
+  const now = at("2026-09-17T14:00:00Z");
+
+  it("keeps what happened inside the window and forgets the rest", () => {
+    const recent = new RecentRenders(2 * HOUR);
+    recent.record(request("old"), '"old"', true, now - 3 * HOUR);
+    recent.record(request("fresh"), '"fresh"', true, now - 30 * 60_000);
+
+    const list = recent.list(now);
+    assert.equal(list.length, 1);
+    assert.equal(list[0]?.request.seed, "fresh");
+  });
+
+  it("counts repeats of the same image instead of listing it twice", () => {
+    const recent = new RecentRenders(2 * HOUR);
+    recent.record(request("ada"), '"ada"', true, now - 10 * 60_000);
+    recent.record(request("ada"), '"ada"', false, now - 5 * 60_000);
+    recent.record(request("ada"), '"ada"', false, now - 60_000);
+
+    const [entry] = recent.list(now);
+    assert.equal(recent.list(now).length, 1);
+    assert.equal(entry?.count, 3);
+    assert.equal(entry?.rendered, 1, "only the first one reached the renderer");
+    assert.equal(entry?.lastAt, now - 60_000);
+  });
+
+  it("lists the newest first", () => {
+    const recent = new RecentRenders(2 * HOUR);
+    recent.record(request("first"), '"first"', true, now - 20 * 60_000);
+    recent.record(request("second"), '"second"', true, now - 10 * 60_000);
+    recent.record(request("third"), '"third"', true, now - 60_000);
+
+    assert.deepEqual(
+      recent.list(now).map((entry) => entry.request.seed),
+      ["third", "second", "first"],
+    );
+  });
+
+  it("drops the oldest once the ceiling is reached, however recent they are", () => {
+    const recent = new RecentRenders(2 * HOUR, 3);
+    for (const seed of ["a", "b", "c", "d"]) {
+      recent.record(request(seed), `"${seed}"`, true, now - 60_000);
+    }
+
+    assert.equal(recent.size, 3);
+    assert.deepEqual(
+      recent.list(now)
+        .map((entry) => entry.request.seed)
+        .sort(),
+      ["b", "c", "d"],
+    );
+  });
+
+  it("holds nothing at all when the window is zero", () => {
+    const recent = new RecentRenders(0);
+    recent.record(request("ada"), '"ada"', true, now);
+
+    assert.equal(recent.enabled, false);
+    assert.equal(recent.size, 0);
+    assert.deepEqual(recent.list(now), []);
   });
 });
 
@@ -212,24 +288,66 @@ describe("the stats route", () => {
 });
 
 describe("the stats page", () => {
+  const page = (stats: RequestStats, now: number, recent: RecentEntry[] = [], recentWindowMs = 2 * HOUR) =>
+    renderStatsPage({ snapshot: stats.snapshot(now), recent, recentWindowMs, origin: "https://avatar.waldrand.dev" });
+
   it("draws a bar per hour that had traffic and says when nothing did", () => {
     const stats = new RequestStats("UTC");
     const now = at("2026-09-17T14:00:00Z");
     stats.record("rendered", now);
 
-    const busy = renderStatsPage(stats.snapshot(now), "https://avatar.waldrand.dev");
+    const busy = page(stats, now);
     assert.match(busy, /14:00 · 1 request ·/);
     assert.doesNotMatch(busy, /nothing counted yet/, "today had a request, so the plot is not empty");
 
-    const quiet = renderStatsPage(new RequestStats("UTC").snapshot(now), "https://avatar.waldrand.dev");
-    assert.match(quiet, /nothing counted yet/);
+    assert.match(page(new RequestStats("UTC"), now), /nothing counted yet/);
   });
 
   it("escapes what it is given rather than trusting the zone name", () => {
     const stats = new RequestStats("UTC");
     const snapshot = { ...stats.snapshot(at("2026-09-17T14:00:00Z")), timezone: "<script>x</script>" };
 
-    const html = renderStatsPage(snapshot, "https://avatar.waldrand.dev");
+    const html = renderStatsPage({ snapshot, recent: [], recentWindowMs: 0, origin: "https://avatar.waldrand.dev" });
     assert.doesNotMatch(html, /<script>x/);
+  });
+
+  it("draws each recent avatar into the page instead of linking it back", () => {
+    const now = at("2026-09-17T14:00:00Z");
+    const recent = new RecentRenders(2 * HOUR);
+    recent.record(request("ada"), "\"ada\"", true, now - 30_000);
+    recent.record(request("grace", "grid"), "\"grace\"", false, now - 4 * 60_000);
+
+    const html = page(new RequestStats("UTC"), now, recent.list(now));
+
+    assert.match(html, /Rendered in the last 2 hours/);
+    assert.match(html, /ada/);
+    assert.match(html, /grace/);
+    assert.match(html, /4 min ago/);
+    // The thumbnails are the markup itself, so nothing here points back at the
+    // service - a linked image would be counted as a fresh request.
+    assert.doesNotMatch(html, /<img/);
+    assert.equal((html.match(/<svg /g) ?? []).length, 4, "two charts and two thumbnails");
+  });
+
+  it("says so when the window is empty, and leaves the section out when it is off", () => {
+    const now = at("2026-09-17T14:00:00Z");
+    assert.match(page(new RequestStats("UTC"), now, []), /Nothing yet/);
+
+    const off = page(new RequestStats("UTC"), now, [], 0);
+    assert.doesNotMatch(off, /Rendered in the last/);
+    assert.match(off, /no seed is kept at all/);
+  });
+
+  it("escapes a seed rather than letting it write markup", () => {
+    const now = at("2026-09-17T14:00:00Z");
+    const recent = new RecentRenders(2 * HOUR);
+    recent.record(request("<img src=x onerror=alert(1)>"), '"x"', true, now);
+
+    const html = page(new RequestStats("UTC"), now, recent.list(now));
+    // The seed may appear as text - escaped, it is inert - but never as a tag
+    // or an attribute the browser would act on.
+    assert.doesNotMatch(html, /<img/, "no tag the seed asked for");
+    assert.doesNotMatch(html, /"[^"]*"\s+onerror/, "and no attribute broken out of");
+    assert.match(html, /&#60;img src=x onerror/, "shown, but as characters rather than markup");
   });
 });

@@ -9,7 +9,7 @@ export const en = {
   meta: {
     title: "avatar.waldrand.dev — avatars & identicons",
     description:
-      "A keyless GET that turns any string into a stable, unique avatar. SVG, PNG or WebP, four styles, nothing stored.",
+      "A keyless GET that turns any string into a stable, unique avatar. SVG, PNG or WebP, four styles, nothing written down.",
     ogDescription: "A keyless GET that turns any string into a stable, unique avatar.",
     skip: "Skip to content",
     switchLabel: "Sprache auf Deutsch umstellen",
@@ -36,7 +36,7 @@ export const en = {
     h1: "Avatars & identicons",
     lede:
       "Pass any string — a user id, an email hash, a commit sha — and get a stable, unique mark " +
-      "back. Nothing is stored; the same seed always renders the same image.",
+      "back. Nothing is written to disk; the same seed always renders the same image.",
     request: "Request",
     copy: "copy",
     copied: "copied",

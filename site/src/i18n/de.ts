@@ -8,7 +8,7 @@ export const de: Copy = {
   meta: {
     title: "avatar.waldrand.dev — Avatare & Identicons",
     description:
-      "Ein GET ohne Schlüssel, das aus jeder Zeichenkette einen festen, eindeutigen Avatar macht. SVG, PNG oder WebP, vier Stile, nichts gespeichert.",
+      "Ein GET ohne Schlüssel, das aus jeder Zeichenkette einen festen, eindeutigen Avatar macht. SVG, PNG oder WebP, vier Stile, nichts landet auf der Platte.",
     ogDescription:
       "Ein GET ohne Schlüssel, das aus jeder Zeichenkette einen festen, eindeutigen Avatar macht.",
     skip: "Zum Inhalt springen",
@@ -36,7 +36,7 @@ export const de: Copy = {
     h1: "Avatare & Identicons",
     lede:
       "Schick irgendeine Zeichenkette — eine Nutzer-ID, einen E-Mail-Hash, einen Commit-SHA — und " +
-      "bekomm ein festes, eindeutiges Zeichen zurück. Nichts wird gespeichert; derselbe Seed ergibt " +
+      "bekomm ein festes, eindeutiges Zeichen zurück. Nichts landet auf der Platte; derselbe Seed ergibt " +
       "immer dasselbe Bild.",
     request: "Anfrage",
     copy: "kopieren",

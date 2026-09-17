@@ -9,6 +9,8 @@
  * with nothing else loaded.
  */
 
+import { renderSvg } from "../avatar/render.ts";
+import type { RecentEntry } from "./recent.ts";
 import { OUTCOMES, type Counts, type Snapshot } from "./stats.ts";
 
 const NUMBER = new Intl.NumberFormat("en-US");
@@ -153,6 +155,76 @@ function columnChart(columns: readonly Column[], caption: string): string {
   );
 }
 
+/** How long ago, in the roughest unit that still says something. */
+function ago(ms: number): string {
+  const seconds = Math.max(0, Math.round(ms / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ${minutes % 60}m ago`;
+}
+
+/** A seed is arbitrary text somebody else chose. It arrives here escaped, and long ones are cut. */
+function seedLabel(seed: string): string {
+  const shown = seed.length > 28 ? `${seed.slice(0, 27)}…` : seed;
+  return escape(shown === "" ? "(empty seed)" : shown);
+}
+
+/**
+ * The avatars themselves, drawn into the page rather than linked.
+ *
+ * An `<img src="/ada.svg">` would send the browser back to the service for
+ * every tile, and those requests would land in the very counters this page is
+ * showing. Rendering the markup inline keeps the page honest - and it is the
+ * same pure function of the seed either way, so what you see is what went out.
+ */
+function recentSection(entries: readonly RecentEntry[], windowMs: number, now: number, shown: number): string {
+  const minutes = Math.round(windowMs / 60_000);
+  const window = minutes % 60 === 0 ? `${minutes / 60} hour${minutes === 60 ? "" : "s"}` : `${minutes} minutes`;
+
+  if (entries.length === 0) {
+    return (
+      `<section><h2>Rendered in the last ${escape(window)}</h2>` +
+      `<p class="sub">Nothing yet. Avatars appear here as they go out, and leave again after ${escape(window)}.</p></section>`
+    );
+  }
+
+  const tiles = entries
+    .slice(0, shown)
+    .map((entry) => {
+      // Drawn small, but from the caller's own parameters: their style, their
+      // rounding, their background - only the pixel size is ours.
+      const preview = renderSvg({ ...entry.request, format: "svg", size: 56 });
+      const meta = `${entry.request.style} · ${entry.request.format} · ${entry.request.size}px`;
+      const times = entry.count === 1 ? "once" : `${NUMBER.format(entry.count)}×`;
+
+      return (
+        `<figure class="shot" title="${escape(entry.request.seed)}">` +
+        `<div class="shot-image">${preview}</div>` +
+        `<figcaption>` +
+        `<div class="shot-seed">${seedLabel(entry.request.seed)}</div>` +
+        `<div class="shot-meta">${escape(meta)}</div>` +
+        `<div class="shot-meta">${escape(times)} · ${escape(ago(now - entry.lastAt))}</div>` +
+        `</figcaption></figure>`
+      );
+    })
+    .join("");
+
+  const more =
+    entries.length > shown ?
+      ` · ${NUMBER.format(entries.length - shown)} more not shown`
+    : "";
+
+  return (
+    `<section>` +
+    `<h2>Rendered in the last ${escape(window)}</h2>` +
+    `<p class="sub">${NUMBER.format(entries.length)} distinct avatar${entries.length === 1 ? "" : "s"}${more}. Newest first; repeats are counted, not repeated.</p>` +
+    `<div class="shots">${tiles}</div>` +
+    `</section>`
+  );
+}
+
 function tile(label: string, value: number, note: string): string {
   return (
     `<div class="tile">` +
@@ -211,15 +283,34 @@ table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12p
 th, td { text-align: right; padding: 5px 8px; border-bottom: 1px solid ${COLORS.hairline}; white-space: nowrap; }
 thead th { color: ${COLORS.dim}; font-weight: 500; }
 tbody th { text-align: left; font-weight: 400; color: ${COLORS.dim}; font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+.shots { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); margin-top: 14px; }
+.shot { margin: 0; background: ${COLORS.raised}; border: 1px solid ${COLORS.hairline}; border-radius: 6px; padding: 10px; display: flex; gap: 10px; align-items: center; min-width: 0; }
+.shot-image { flex: none; width: 40px; height: 40px; line-height: 0; }
+.shot-image svg { width: 40px; height: 40px; }
+.shot figcaption { min-width: 0; }
+.shot-seed { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shot-meta { font-size: 11px; color: ${COLORS.faint}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 footer { margin-top: 40px; font-size: 12px; color: ${COLORS.faint}; }
 footer p { margin: 0 0 6px; }
 code { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; color: ${COLORS.dim}; }
 @media (max-width: 520px) { .hero { font-size: 42px; } body { padding-top: 24px; } }
 `;
 
+/** How many avatars the gallery draws before it stops and says how many are left. */
+const SHOTS_SHOWN = 48;
+
+export interface PageInput {
+  readonly snapshot: Snapshot;
+  /** Newest first. Empty when the window holds nothing, or when it is switched off. */
+  readonly recent: readonly RecentEntry[];
+  readonly recentWindowMs: number;
+  readonly origin: string;
+}
+
 /** The whole document, ready to send. */
-export function renderStatsPage(snapshot: Snapshot, origin: string): string {
+export function renderStatsPage({ snapshot, recent, recentWindowMs, origin }: PageInput): string {
   const { today, days } = snapshot;
+  const now = Date.parse(snapshot.generatedAt);
 
   const hourColumns: Column[] = today.hours.map((point) => ({
     label: point.hour % 3 === 0 ? String(point.hour).padStart(2, "0") : "",
@@ -274,13 +365,15 @@ export function renderStatsPage(snapshot: Snapshot, origin: string): string {
     <div class="plot">${columnChart(dayColumns, `Requests per day over the last ${days.length} days`)}</div>
   </section>
 
+  ${recentWindowMs > 0 ? recentSection(recent, recentWindowMs, now, SHOTS_SHOWN) : ""}
+
   <details>
     <summary>The same numbers as a table</summary>
     ${table(snapshot)}
   </details>
 
   <footer>
-    <p>Counters live in the container's memory: a restart or redeploy starts the day at zero, and a second replica would count only its own share. Nothing about a caller is recorded - no addresses, no seeds, no paths, only these totals.</p>
+    <p>Counters live in the container's memory: a restart or redeploy starts the day at zero, and a second replica would count only its own share. No address is ever recorded${recentWindowMs > 0 ? ", and the seeds above are held in memory for the window and then dropped" : ", and no seed is kept at all"}.</p>
     <p>Machine-readable: <code>/stats.json</code>, same token.</p>
   </footer>
 </main>

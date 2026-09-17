@@ -12,7 +12,7 @@ A keyless `GET` that turns any string into a stable, unique avatar.
 curl "https://avatar.waldrand.dev/ada.svg?size=256&style=ridge"
 ```
 
-No account, no token, nothing stored. The seed is hashed and the digest is the
+No account, no token, nothing written to disk. The seed is hashed and the digest is the
 only source of randomness a style may draw on, so the same seed renders the same
 image on any machine, in any process, for as long as the style stands.
 
@@ -90,6 +90,7 @@ src/avatar/raster.ts  SVG to PNG or WebP, through libvips
 src/http/ratelimit.ts a token bucket per IP, charged for renders only
 src/http/render-cache.ts rendered avatars by ETag, bounded by bytes
 src/http/stats.ts     hourly request counters, no addresses, no seeds
+src/http/recent.ts    which avatars went out in the last two hours, in memory
 src/http/stats-page.ts the private /stats page and its inline-SVG charts
 src/http/static.ts    the docs, read into memory at boot
 site/                 the docs page: Astro, Tailwind, two prerendered languages
@@ -136,9 +137,10 @@ worth knowing about:
 
 ## How many requests were there?
 
-`/stats` is a chart of today by the hour, the last 30 days by the day, and the
+`/stats` is a chart of today by the hour, the last 30 days by the day, the
 outcome each request had — rendered, served from the render cache, revalidated
-with a 304, rate limited, rejected, or the docs. It is for the operator, so it
+with a 304, rate limited, rejected, or the docs — and a gallery of the avatars
+that actually went out in the last two hours. It is for the operator, so it
 only exists once there is a token to hold:
 
 ```sh
@@ -156,12 +158,25 @@ and with `STATS_TOKEN` unset `/stats` is simply the avatar for the seed
 `stats`. The page is `no-store`, `noindex`, and carries no
 `Access-Control-Allow-Origin`, so no other origin can read it.
 
-What it counts is six numbers an hour and nothing else — no addresses, no
-seeds, no paths, no user agents. The counters live in the container's memory
-like the rate limiter and the render cache do, which has two consequences worth
-knowing: a restart or redeploy starts the day at zero, and a second replica
-counts only its own share. `STATS_TIMEZONE` decides what "today" means; it is
-UTC until set.
+The counters are six numbers an hour and nothing else — no addresses, no
+paths, no user agents. They live in the container's memory like the rate
+limiter and the render cache do, which has two consequences worth knowing: a
+restart or redeploy starts the day at zero, and a second replica counts only
+its own share. `STATS_TIMEZONE` decides what "today" means; it is UTC until
+set.
+
+The gallery is the one place a seed is held, because showing what was drawn
+means keeping what it was drawn from, and a seed can be somebody's user id. So
+it is deliberately narrow:
+
+- in memory only, never on disk, gone on restart,
+- `STATS_RECENT_MINUTES` old at most — 120 by default, `0` to keep nothing,
+- at most `STATS_RECENT_MAX` requests deep (500), oldest dropped first,
+- collected only while `STATS_TOKEN` is set. No token, no seed kept anywhere.
+
+The thumbnails are drawn into the page itself rather than linked, so opening
+the page does not send your browser back to the service and inflate the very
+counters you came to read.
 
 ## Deploy
 

@@ -100,8 +100,22 @@ export const config = {
   stats: {
     token: secret("STATS_TOKEN"),
     timezone: zone("STATS_TIMEZONE", "UTC"),
+    /**
+     * How long the page remembers which avatars went out, in minutes. Two
+     * hours by default, 0 to keep nothing.
+     *
+     * This is the only thing here that holds a seed - which may be somebody's
+     * user id - so it is short, it is memory only, and it is collected solely
+     * while a token exists to read it with.
+     */
+    recentMinutes: int("STATS_RECENT_MINUTES", 120),
+    /** Ceiling on the requests that window may hold, oldest dropped first. */
+    recentMax: int("STATS_RECENT_MAX", 500),
     get enabled() {
       return this.token !== "";
+    },
+    get recentMs() {
+      return this.enabled ? this.recentMinutes * 60_000 : 0;
     },
   },
 
